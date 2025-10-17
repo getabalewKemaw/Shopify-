@@ -5,13 +5,19 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import java.util.Collection;
+
 @Entity
 @Table(name = "users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User {
+public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,17 +30,19 @@ public class User {
     private String email;
 
     @Column(nullable = false)
-    private String passwordHash;
+    private String password; 
 
-    private String googleId; // optional (OAuth login)
+    private String googleId; // (OAuth login)
 
     @Enumerated(EnumType.STRING)
     private Role role; // USER or ADMIN
 
     private String profileImage;
 
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Builder.Default
     private LocalDateTime updatedAt = LocalDateTime.now();
 
     // Relationships
@@ -52,5 +60,32 @@ public class User {
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private Cart cart;
-}
 
+    // ✅ From UserDetails interface
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority(role.name()));
+    }
+
+    @Override
+    public String getPassword() {  //  required for authentication
+        return password;
+    }
+
+    @Override
+    public String getUsername() {
+        return username;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() { return true; }
+
+    @Override
+    public boolean isAccountNonLocked() { return true; }
+
+    @Override
+    public boolean isCredentialsNonExpired() { return true; }
+
+    @Override
+    public boolean isEnabled() { return true; }
+}
