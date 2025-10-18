@@ -29,6 +29,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/products/**").permitAll() // Public access to view products
                 .requestMatchers("/api/admin/**").hasAuthority("ADMIN") // Admin only
                 .requestMatchers("/api/user/**").authenticated() // Authenticated users only
+                .requestMatchers("/api/favorites/**").authenticated() // Authenticated users only
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             )
