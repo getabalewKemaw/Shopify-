@@ -30,6 +30,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").hasAuthority("ADMIN") // Admin only
                 .requestMatchers("/api/user/**").authenticated() // Authenticated users only
                 .requestMatchers("/api/favorites/**").authenticated() // Authenticated users only
+                .requestMatchers("/api/cart/**").authenticated() // Authenticated users only
+                .requestMatchers("/api/orders/**").authenticated() // Authenticated users only
+                .requestMatchers("/api/notifications/**").authenticated() // Authenticated users only
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             )
