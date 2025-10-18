@@ -22,6 +22,25 @@ public class AuthService {
     private final JwtService jwtService;
 
     public String register(RegisterRequest request) {
+        // Validate request
+        if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
+            throw new RuntimeException("Username is required");
+        }
+        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+            throw new RuntimeException("Email is required");
+        }
+        if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
+            throw new RuntimeException("Password is required");
+        }
+        
+        // Check if user already exists
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email already exists");
+        }
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new RuntimeException("Username already exists");
+        }
+        
         User user = User.builder()
                 .username(request.getUsername())
                 .email(request.getEmail())

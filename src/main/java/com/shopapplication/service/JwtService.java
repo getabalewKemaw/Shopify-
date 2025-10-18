@@ -5,13 +5,17 @@ import org.springframework.stereotype.Service;
 
 import java.security.Key;
 import java.util.Date;
-import java.util.function.Function;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 public class JwtService {
 
-    private static final String SECRET_KEY = "mysecretkeymysecretkeymysecretkey1234";
+    private final String secretKey;
+
+    public JwtService(@Value("${jwt.secret}") String secretKey) {
+        this.secretKey = secretKey;
+    }
 
     public String generateToken(String email) {
         long now = System.currentTimeMillis();
@@ -58,7 +62,7 @@ public class JwtService {
 
 
     private Key getSignInKey() {
-        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+        return Keys.hmacShaKeyFor(secretKey.getBytes());
     }
     // public boolean isTokenValid(String token){
     //     try{

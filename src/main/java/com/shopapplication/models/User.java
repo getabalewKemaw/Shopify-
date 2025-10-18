@@ -1,6 +1,7 @@
 package com.shopapplication.models;
 
 import jakarta.persistence.*;
+import jakarta.persistence.Transient;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,8 +30,12 @@ public class User implements UserDetails {
     @Column(unique = true, nullable = false, length = 100)
     private String email;
 
-    @Column(nullable = false)
-    private String password; 
+    @Column(name = "password_hash", nullable = false)
+    private String password;
+    
+    // Ignore the old password column if it exists
+    @Transient
+    private String oldPassword; 
 
     private String googleId; // (OAuth login)
 
