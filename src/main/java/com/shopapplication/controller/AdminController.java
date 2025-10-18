@@ -1,7 +1,9 @@
 package com.shopapplication.controller;
 
+import com.shopapplication.dto.AdminDashboardStats;
 import com.shopapplication.dto.ProductRequest;
 import com.shopapplication.dto.ProductResponse;
+import com.shopapplication.service.AdminService;
 import com.shopapplication.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -14,10 +16,21 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class AdminController {
 
     private final ProductService productService;
+    private final AdminService adminService;
+
+    @GetMapping("/dashboard/stats")
+    public ResponseEntity<?> getDashboardStats() {
+        try {
+            AdminDashboardStats stats = adminService.getDashboardStats();
+            return ResponseEntity.ok(stats);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 
     @GetMapping("/products")
     public ResponseEntity<?> getAllProducts() {

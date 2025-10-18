@@ -27,11 +27,14 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/products/**").permitAll() // Public access to view products
-                .requestMatchers("/api/admin/**").hasAuthority("ADMIN") // Admin only
+                .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN") // Admin only
                 .requestMatchers("/api/user/**").authenticated() // Authenticated users only
                 .requestMatchers("/api/favorites/**").authenticated() // Authenticated users only
                 .requestMatchers("/api/cart/**").authenticated() // Authenticated users only
                 .requestMatchers("/api/orders/**").authenticated() // Authenticated users only
+                .requestMatchers("/api/payments/**").authenticated() // Authenticated users only
+                .requestMatchers("/api/reviews/product/**").permitAll() // Public can view product reviews
+                .requestMatchers("/api/reviews/**").authenticated() // Auth required for create/update/delete
                 .requestMatchers("/api/notifications/**").authenticated() // Authenticated users only
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
