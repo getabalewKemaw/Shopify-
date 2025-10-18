@@ -1,7 +1,7 @@
 package com.shopapplication.config;
-
 import com.shopapplication.service.JwtService;
 import com.shopapplication.repository.UserRepository;
+import com.shopapplication.repository.AdminRepository;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -20,11 +20,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private JwtService jwtService;
     private UserRepository userRepository;
+    private AdminRepository adminRepository;
 
     @Autowired
-    public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
+    public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository, AdminRepository adminRepository) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.adminRepository = adminRepository;
     }
 
     @Override
@@ -48,7 +50,14 @@ protected void doFilterInternal(HttpServletRequest request,
             userEmail = jwtService.extractEmail(jwt);
 
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                // Check User table first
                 UserDetails userDetails = userRepository.findByEmail(userEmail).orElse(null);
+                
+                // If not found in User table, check Admin table
+                if (userDetails == null) {
+                    userDetails = adminRepository.findByEmail(userEmail).orElse(null);
+                }
+                
                 if (userDetails != null && jwtService.isTokenValid(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,

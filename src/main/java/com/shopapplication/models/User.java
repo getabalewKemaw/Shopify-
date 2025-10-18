@@ -1,15 +1,12 @@
 package com.shopapplication.models;
-
 import jakarta.persistence.*;
 import jakarta.persistence.Transient;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
-
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-
 import java.util.Collection;
 
 @Entity
@@ -79,7 +76,8 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return username;
+        // Return email for Spring Security authentication (JWT uses email)
+        return email;
     }
 
     @Override
