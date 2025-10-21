@@ -30,12 +30,14 @@ public class OrderService {
     private final NotificationService notificationService;
 
     /**
-     * Create order from cart
-     * - Validates cart is not empty
-     * - Checks stock availability
+     * Create order from cart or direct items
+     * - If items provided in request, use them directly (for external API products)
+     * - Otherwise, use cart items (for database products)
+     * - Validates items are not empty
+     * - Checks stock availability for database products only
      * - Creates order and order items
-     * - Reduces product stock
-     * - Clears cart
+     * - Reduces product stock for database products
+     * - Clears cart if used
      * - Notifies admins about new order
      */
     @Transactional
@@ -47,31 +49,86 @@ public class OrderService {
             throw new RuntimeException("Shipping address is required");
         }
         
-        // Get user's cart
-        Cart cart = cartRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+        List<OrderItem> orderItems = new ArrayList<>();
+        double totalAmount = 0.0;
+        boolean useCart = false;
         
-        List<CartItem> cartItems = cartItemRepository.findByCart(cart);
-        
-        if (cartItems.isEmpty()) {
-            throw new RuntimeException("Cart is empty. Add items before creating an order");
-        }
-        
-        // Validate stock availability for all items
-        for (CartItem cartItem : cartItems) {
-            Product product = cartItem.getProduct();
-            if (product.getStock() < cartItem.getQuantity()) {
-                throw new RuntimeException(String.format(
-                    "Insufficient stock for product '%s'. Available: %d, Requested: %d",
-                    product.getName(), product.getStock(), cartItem.getQuantity()
-                ));
+        // Check if items are provided directly in the request
+        if (request.getItems() != null && !request.getItems().isEmpty()) {
+            // Create order from provided items (supports external API products)
+            for (CreateOrderRequest.OrderItemDto itemDto : request.getItems()) {
+                Product product = productRepository.findById(itemDto.getProductId())
+                        .orElse(null);
+                
+                // For database products, validate stock
+                if (product != null) {
+                    if (product.getStock() < itemDto.getQuantity()) {
+                        throw new RuntimeException(String.format(
+                            "Insufficient stock for product '%s'. Available: %d, Requested: %d",
+                            product.getName(), product.getStock(), itemDto.getQuantity()
+                        ));
+                    }
+                }
+                
+                // Use provided price (important for external API products)
+                double unitPrice = itemDto.getPrice() != null ? itemDto.getPrice() : 
+                                  (product != null ? product.getPrice() : 0.0);
+                double subtotal = unitPrice * itemDto.getQuantity();
+                totalAmount += subtotal;
+                
+                // Create a placeholder order item (will set order later)
+                OrderItem orderItem = OrderItem.builder()
+                        .product(product) // May be null for external products
+                        .quantity(itemDto.getQuantity())
+                        .unitPrice(unitPrice)
+                        .subtotal(subtotal)
+                        .build();
+                
+                orderItems.add(orderItem);
+            }
+        } else {
+            // Use cart items (original behavior)
+            useCart = true;
+            Cart cart = cartRepository.findByUser(user)
+                    .orElseThrow(() -> new RuntimeException("Cart not found"));
+            
+            List<CartItem> cartItems = cartItemRepository.findByCart(cart);
+            
+            if (cartItems.isEmpty()) {
+                throw new RuntimeException("Cart is empty. Add items before creating an order");
+            }
+            
+            // Validate stock availability for all items
+            for (CartItem cartItem : cartItems) {
+                Product product = cartItem.getProduct();
+                if (product.getStock() < cartItem.getQuantity()) {
+                    throw new RuntimeException(String.format(
+                        "Insufficient stock for product '%s'. Available: %d, Requested: %d",
+                        product.getName(), product.getStock(), cartItem.getQuantity()
+                    ));
+                }
+            }
+            
+            // Calculate total amount and create order items
+            for (CartItem cartItem : cartItems) {
+                Product product = cartItem.getProduct();
+                double subtotal = product.getPrice() * cartItem.getQuantity();
+                totalAmount += subtotal;
+                
+                OrderItem orderItem = OrderItem.builder()
+                        .product(product)
+                        .quantity(cartItem.getQuantity())
+                        .unitPrice(product.getPrice())
+                        .subtotal(subtotal)
+                        .build();
+                
+                orderItems.add(orderItem);
             }
         }
         
-        // Calculate total amount
-        double totalAmount = cartItems.stream()
-                .mapToDouble(item -> item.getProduct().getPrice() * item.getQuantity())
-                .sum();
+        if (orderItems.isEmpty()) {
+            throw new RuntimeException("No items to order");
+        }
         
         // Create order
         Order order = Order.builder()
@@ -85,31 +142,29 @@ public class OrderService {
         
         Order savedOrder = orderRepository.save(order);
         
-        // Create order items and reduce stock
-        List<OrderItem> orderItems = new ArrayList<>();
-        for (CartItem cartItem : cartItems) {
-            Product product = cartItem.getProduct();
+        // Set order reference and reduce stock for database products
+        for (OrderItem orderItem : orderItems) {
+            orderItem.setOrder(savedOrder);
             
-            OrderItem orderItem = OrderItem.builder()
-                    .order(savedOrder)
-                    .product(product)
-                    .quantity(cartItem.getQuantity())
-                    .unitPrice(product.getPrice())
-                    .subtotal(product.getPrice() * cartItem.getQuantity())
-                    .build();
-            
-            orderItems.add(orderItem);
-            
-            // Reduce product stock
-            product.setStock(product.getStock() - cartItem.getQuantity());
-            productRepository.save(product);
+            // Reduce stock only for database products
+            if (orderItem.getProduct() != null) {
+                Product product = orderItem.getProduct();
+                product.setStock(product.getStock() - orderItem.getQuantity());
+                productRepository.save(product);
+            }
         }
         
         savedOrder.setOrderItems(orderItems);
         orderRepository.save(savedOrder);
         
-        // Clear cart
-        cartItemRepository.deleteAll(cartItems);
+        // Clear cart if it was used
+        if (useCart) {
+            Cart cart = cartRepository.findByUser(user).orElse(null);
+            if (cart != null) {
+                List<CartItem> cartItems = cartItemRepository.findByCart(cart);
+                cartItemRepository.deleteAll(cartItems);
+            }
+        }
         
         // Notify user
         notificationService.createNotification(
@@ -284,11 +339,13 @@ public class OrderService {
     }
 
     private OrderItemResponse convertToOrderItemResponse(OrderItem orderItem) {
+        Product product = orderItem.getProduct();
+        
         return OrderItemResponse.builder()
                 .id(orderItem.getId())
-                .productId(orderItem.getProduct().getId())
-                .productName(orderItem.getProduct().getName())
-                .productImage(orderItem.getProduct().getImageUrl())
+                .productId(product != null ? product.getId() : null)
+                .productName(product != null ? product.getName() : "External Product")
+                .productImage(product != null ? product.getImageUrl() : null)
                 .quantity(orderItem.getQuantity())
                 .unitPrice(orderItem.getUnitPrice())
                 .subtotal(orderItem.getSubtotal())
