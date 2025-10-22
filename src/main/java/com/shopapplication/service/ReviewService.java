@@ -22,6 +22,7 @@ public class ReviewService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
+    private final NotificationService notificationService;
 
     /**
      * Create a review for a purchased product
@@ -62,6 +63,14 @@ public class ReviewService {
                 .build();
 
         Review savedReview = reviewRepository.save(review);
+
+        // Send notification to admins
+        notificationService.notifyAdminsAboutNewReview(
+            savedReview.getId(),
+            user.getUsername(),
+            product.getName(),
+            savedReview.getRating()
+        );
 
         return convertToReviewResponse(savedReview);
     }

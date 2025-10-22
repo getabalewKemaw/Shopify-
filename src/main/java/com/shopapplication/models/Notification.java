@@ -16,8 +16,12 @@ public class Notification {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = true)
     private User user;
+
+    @ManyToOne
+    @JoinColumn(name = "admin_id", nullable = true)
+    private Admin admin;
 
     private String title;
     private String message;

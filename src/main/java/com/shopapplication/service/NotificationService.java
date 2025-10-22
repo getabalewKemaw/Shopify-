@@ -65,9 +65,36 @@ public class NotificationService {
                 orderId, userEmail, totalAmount);
         
         for (Admin admin : admins) {
-            // Create notification for each admin (if they have user accounts)
-            // In a real system, you might have a separate admin notification table
-            // For now, we'll skip this or you can extend Admin to have notifications
+            Notification notification = Notification.builder()
+                    .admin(admin)
+                    .title(title)
+                    .message(message)
+                    .isRead(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(notification);
+        }
+    }
+
+    /**
+     * Notify all admins about new review
+     */
+    @Transactional
+    public void notifyAdminsAboutNewReview(Long reviewId, String userName, String productName, Integer rating) {
+        List<Admin> admins = adminRepository.findAll();
+        
+        String title = "New Product Review";
+        String message = String.format("%s left a %d-star review on %s", userName, rating, productName);
+        
+        for (Admin admin : admins) {
+            Notification notification = Notification.builder()
+                    .admin(admin)
+                    .title(title)
+                    .message(message)
+                    .isRead(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(notification);
         }
     }
 
@@ -166,6 +193,35 @@ public class NotificationService {
         return notificationRepository.countByUserAndIsRead(user, false);
     }
 
+    /**
+     * Get all admin notifications
+     */
+    public List<NotificationResponse> getAdminNotifications() {
+        Admin admin = getCurrentAdmin();
+        List<Notification> notifications = notificationRepository.findByAdminOrderByCreatedAtDesc(admin);
+        return notifications.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Mark admin notification as read
+     */
+    @Transactional
+    public void markAdminNotificationAsRead(Long notificationId) {
+        Admin admin = getCurrentAdmin();
+        
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("Notification not found"));
+        
+        if (notification.getAdmin() == null || !notification.getAdmin().getId().equals(admin.getId())) {
+            throw new RuntimeException("You don't have permission to access this notification");
+        }
+        
+        notification.setIsRead(true);
+        notificationRepository.save(notification);
+    }
+
     // Helper methods
 
     private User getCurrentUser() {
@@ -173,6 +229,13 @@ public class NotificationService {
         String email = authentication.getName();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    private Admin getCurrentAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        return adminRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Admin not found"));
     }
 
     private NotificationResponse convertToResponse(Notification notification) {

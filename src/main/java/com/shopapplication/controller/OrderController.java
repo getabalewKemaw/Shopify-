@@ -67,7 +67,7 @@ public class OrderController {
 
     // Admin endpoints
     @GetMapping("/admin/all")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> getAllOrders() {
         try {
             List<OrderResponse> orders = orderService.getAllOrders();
@@ -78,7 +78,7 @@ public class OrderController {
     }
 
     @PutMapping("/admin/{orderId}/status")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> updateOrderStatus(@PathVariable Long orderId, @RequestBody UpdateOrderStatusRequest request) {
         try {
             OrderResponse order = orderService.updateOrderStatus(orderId, request);
@@ -92,7 +92,7 @@ public class OrderController {
     }
 
     @GetMapping("/admin/status/{status}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> getOrdersByStatus(@PathVariable String status) {
         try {
             List<OrderResponse> orders = orderService.getOrdersByStatus(status);

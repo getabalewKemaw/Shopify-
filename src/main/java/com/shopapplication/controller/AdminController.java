@@ -21,6 +21,7 @@ public class AdminController {
 
     private final ProductService productService;
     private final AdminService adminService;
+    private final com.shopapplication.service.NotificationService notificationService;
 
     @GetMapping("/dashboard/stats")
     public ResponseEntity<?> getDashboardStats() {
@@ -83,6 +84,26 @@ public class AdminController {
         try {
             productService.deleteProduct(id);
             return ResponseEntity.ok().body(Map.of("message", "Product deleted successfully"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/notifications")
+    public ResponseEntity<?> getAdminNotifications() {
+        try {
+            var notifications = notificationService.getAdminNotifications();
+            return ResponseEntity.ok(notifications);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/notifications/{id}/read")
+    public ResponseEntity<?> markAdminNotificationAsRead(@PathVariable Long id) {
+        try {
+            notificationService.markAdminNotificationAsRead(id);
+            return ResponseEntity.ok().body(Map.of("message", "Notification marked as read"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
